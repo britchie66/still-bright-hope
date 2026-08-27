@@ -14,11 +14,26 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-      </Stack>
-      <StatusBar style="auto" />
+<Stack>
+  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+<Stack.Screen
+  name="devotional/[id]"
+  options={{
+    title: '',
+    headerBackTitle: 'Archive',
+    headerTintColor: '#35322D',
+    headerStyle: {
+      backgroundColor: '#F4EFE6',
+    },
+    headerShadowVisible: false,
+  }}
+/>
+  <Stack.Screen
+    name="modal"
+    options={{ presentation: 'modal', title: 'Modal' }}
+  />
+</Stack>
+      <StatusBar style="dark" />
     </ThemeProvider>
   );
 }
