@@ -10,6 +10,7 @@ import {
   Image,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   View,
@@ -17,11 +18,13 @@ import {
 import { supabase } from '../../constants/supabase';
 
 const TEXT_SIZE_KEY = 'devotionalTextSize';
+const SAVED_KEY = 'savedDevotionalIds';
 
 export default function HomeScreen() {
   const [devotional, setDevotional] = useState<any>(null);
   const [progressWidth, setProgressWidth] = useState(0);
   const [textSize, setTextSize] = useState(19);
+  const [isSaved, setIsSaved] = useState(false);
 
   const player = useAudioPlayer(null);
   const status = useAudioPlayerStatus(player);
@@ -59,6 +62,14 @@ export default function HomeScreen() {
 
         if (data) {
           setDevotional(data);
+
+          try {
+            const savedJson = await AsyncStorage.getItem(SAVED_KEY);
+            const savedIds: number[] = savedJson ? JSON.parse(savedJson) : [];
+            setIsSaved(savedIds.includes(Number(data.id)));
+          } catch (savedError) {
+            console.log('CHECK SAVED ERROR:', savedError);
+          }
         }
 
         console.log('SUPABASE DATA:', data);
@@ -87,6 +98,52 @@ export default function HomeScreen() {
       TEXT_SIZE_KEY,
       String(newSize)
     );
+  }
+
+  async function toggleSaved() {
+    if (!devotional?.id) return;
+
+    try {
+      const savedJson = await AsyncStorage.getItem(SAVED_KEY);
+      let savedIds: number[] = savedJson ? JSON.parse(savedJson) : [];
+      const devotionalId = Number(devotional.id);
+
+      if (savedIds.includes(devotionalId)) {
+        savedIds = savedIds.filter((savedId) => savedId !== devotionalId);
+        setIsSaved(false);
+      } else {
+        savedIds.push(devotionalId);
+        setIsSaved(true);
+      }
+
+      await AsyncStorage.setItem(SAVED_KEY, JSON.stringify(savedIds));
+    } catch (error) {
+      console.log('SAVE ERROR:', error);
+    }
+  }
+
+  async function shareDevotional() {
+    if (!devotional?.id) return;
+
+    try {
+      const url =
+        `https://www.stillbrighthope.com/devotional?id=${devotional.id}`;
+
+      const subtitleLine = devotional.subtitle
+        ? `\n${devotional.subtitle}`
+        : '';
+
+      const scriptureLine = devotional.scripture_reference
+        ? `\n${devotional.scripture_reference}`
+        : '';
+
+      await Share.share({
+        message:
+          `${devotional.title || 'Still Bright Hope'}${subtitleLine}${scriptureLine}\n\nRead & listen:\n${url}`,
+      });
+    } catch (error) {
+      console.log('SHARE ERROR:', error);
+    }
   }
 
   return (
@@ -120,6 +177,32 @@ export default function HomeScreen() {
         <Text style={styles.title}>
           {devotional?.title || 'Loading...'}
         </Text>
+
+        <View style={styles.actionRow}>
+          <Pressable
+            style={styles.actionButton}
+            onPress={toggleSaved}
+          >
+            <Text style={styles.actionIcon}>
+              {isSaved ? '♥' : '♡'}
+            </Text>
+
+            <Text style={styles.actionText}>
+              {isSaved ? 'SAVED' : 'SAVE'}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.actionButton}
+            onPress={shareDevotional}
+          >
+            <Text style={styles.shareIcon}>↗</Text>
+
+            <Text style={styles.actionText}>
+              SHARE
+            </Text>
+          </Pressable>
+        </View>
 
         <View style={styles.scriptureCardWrap}>
           <View style={styles.paperBehind} />
@@ -367,7 +450,43 @@ const styles = StyleSheet.create({
     fontSize: 42,
     fontWeight: '600',
     color: '#27251F',
+    marginBottom: 12,
+  },
+
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 8,
     marginBottom: 32,
+  },
+
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 7,
+    paddingHorizontal: 11,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#CDBDA5',
+    backgroundColor: '#FBF4E7',
+  },
+
+  actionIcon: {
+    fontSize: 20,
+    color: '#9A7254',
+  },
+
+  shareIcon: {
+    fontSize: 18,
+    color: '#9A7254',
+  },
+
+  actionText: {
+    fontSize: 9,
+    letterSpacing: 1.5,
+    color: '#5A4435',
   },
 
   scriptureCard: {
