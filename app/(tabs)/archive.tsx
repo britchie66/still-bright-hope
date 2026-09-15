@@ -19,65 +19,86 @@ export default function ArchiveScreen() {
     useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
 
-  useFocusEffect(
-    useCallback(() => {
-      // Reset search and close keyboard whenever
-      // the Archive screen receives focus.
-      setSearchText('');
-      Keyboard.dismiss();
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
-      async function loadArchive() {
-        const [
-          devotionalsResult,
-          categoriesResult,
-          linksResult,
-        ] = await Promise.all([
-          supabase
-            .from('devotionals')
-            .select('*')
-            .eq('published', true)
-            .order('publish_date', { ascending: false }),
+  const loadArchive = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError(false);
 
-          supabase
-            .from('categories')
-            .select('*')
-            .order('name', { ascending: true }),
+    try {
+      const [
+        devotionalsResult,
+        categoriesResult,
+        linksResult,
+      ] = await Promise.all([
+        supabase
+          .from('devotionals')
+          .select('*')
+          .eq('published', true)
+          .order('publish_date', { ascending: false }),
 
-          supabase
-            .from('devotional_categories')
-            .select('devotional_id, category_id'),
-        ]);
+        supabase
+          .from('categories')
+          .select('*')
+          .order('name', { ascending: true }),
 
-        if (devotionalsResult.error) {
-          console.log(
-            'ARCHIVE ERROR:',
-            devotionalsResult.error
-          );
-        } else {
-          setDevotionals(devotionalsResult.data || []);
-        }
+        supabase
+          .from('devotional_categories')
+          .select('devotional_id, category_id'),
+      ]);
 
-        if (categoriesResult.error) {
-          console.log(
-            'CATEGORY ERROR:',
-            categoriesResult.error
-          );
-        } else {
-          setCategories(categoriesResult.data || []);
-        }
+      if (
+        devotionalsResult.error ||
+        categoriesResult.error ||
+        linksResult.error
+      ) {
+        console.log(
+          'ARCHIVE ERROR:',
+          devotionalsResult.error
+        );
 
-        if (linksResult.error) {
-          console.log(
-            'CATEGORY LINKS ERROR:',
-            linksResult.error
-          );
-        } else {
-          setCategoryLinks(linksResult.data || []);
-        }
+        console.log(
+          'CATEGORY ERROR:',
+          categoriesResult.error
+        );
+
+        console.log(
+          'CATEGORY LINKS ERROR:',
+          linksResult.error
+        );
+
+        setLoadError(true);
+        return;
       }
 
+      setDevotionals(
+        devotionalsResult.data || []
+      );
+
+      setCategories(
+        categoriesResult.data || []
+      );
+
+      setCategoryLinks(
+        linksResult.data || []
+      );
+    } catch (error) {
+      console.log('LOAD ARCHIVE ERROR:', error);
+      setLoadError(true);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      setSearchText('');
+      setSelectedCategoryId(null);
+      Keyboard.dismiss();
+
       loadArchive();
-    }, [])
+    }, [loadArchive])
   );
 
   const filteredDevotionals = useMemo(() => {
@@ -115,6 +136,80 @@ export default function ArchiveScreen() {
     selectedCategoryId,
     searchText,
   ]);
+
+  if (isLoading) {
+    return (
+      <View style={styles.stateScreen}>
+        <Text style={styles.eyebrow}>
+          EXPLORE
+        </Text>
+
+        <Text style={styles.playerLabel}>
+          FROM THE ARCHIVE
+        </Text>
+
+        <Text style={styles.stateHeading}>
+          Loading the archive...
+        </Text>
+      </View>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <View style={styles.stateScreen}>
+        <Text style={styles.eyebrow}>
+          EXPLORE
+        </Text>
+
+        <Text style={styles.playerLabel}>
+          FROM THE ARCHIVE
+        </Text>
+
+        <Text style={styles.stateHeading}>
+          Couldn’t load the archive
+        </Text>
+
+        <Text style={styles.stateText}>
+          Looks like we’re having trouble
+          connecting right now. Give it another
+          try in a moment.
+        </Text>
+
+        <Pressable
+          style={styles.retryButton}
+          onPress={loadArchive}
+        >
+          <Text style={styles.retryButtonText}>
+            TRY AGAIN
+          </Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  if (devotionals.length === 0) {
+    return (
+      <View style={styles.stateScreen}>
+        <Text style={styles.eyebrow}>
+          EXPLORE
+        </Text>
+
+        <Text style={styles.playerLabel}>
+          FROM THE ARCHIVE
+        </Text>
+
+        <Text style={styles.stateHeading}>
+          Nothing in the archive just yet
+        </Text>
+
+        <Text style={styles.stateText}>
+          Devotionals will begin appearing here
+          as they’re published.
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView
@@ -280,6 +375,45 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 70,
     paddingBottom: 120,
+  },
+
+  stateScreen: {
+    flex: 1,
+    backgroundColor: '#F5EDE0',
+    paddingHorizontal: 24,
+    paddingTop: 70,
+  },
+
+  stateHeading: {
+    marginTop: 18,
+    fontSize: 28,
+    fontWeight: '600',
+    color: '#292111',
+  },
+
+  stateText: {
+    marginTop: 14,
+    fontSize: 18,
+    lineHeight: 28,
+    color: '#6E6A63',
+    maxWidth: 340,
+  },
+
+  retryButton: {
+    alignSelf: 'flex-start',
+    marginTop: 28,
+    paddingVertical: 12,
+    paddingHorizontal: 22,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#CDBDA5',
+    backgroundColor: '#FBF4E7',
+  },
+
+  retryButtonText: {
+    fontSize: 10,
+    letterSpacing: 1.5,
+    color: '#5A4435',
   },
 
   eyebrow: {

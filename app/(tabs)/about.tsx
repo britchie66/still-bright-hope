@@ -1,6 +1,22 @@
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Image,
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 export default function AboutScreen() {
+  const openLink = async (url: string) => {
+    const supported = await Linking.canOpenURL(url);
+
+    if (supported) {
+      await Linking.openURL(url);
+    }
+  };
+
   return (
     <ScrollView
       style={styles.screen}
@@ -59,6 +75,52 @@ export default function AboutScreen() {
       </Text>
 
       <Text style={styles.signature}>Brian</Text>
+
+      <View style={styles.divider} />
+
+      <Text style={styles.sectionHeading}>MORE</Text>
+
+      <Pressable
+        style={styles.linkRow}
+        onPress={() => openLink('https://stillbrighthope.com')}
+      >
+        <Text style={styles.linkText}>Visit Still Bright Hope</Text>
+        <Text style={styles.linkArrow}>›</Text>
+      </Pressable>
+
+      <Pressable
+        style={styles.linkRow}
+        onPress={() =>
+          openLink('https://stillbrighthope.com/subscribe')
+        }
+      >
+        <Text style={styles.linkText}>Get Daily Devotionals by Email</Text>
+        <Text style={styles.linkArrow}>›</Text>
+      </Pressable>
+
+      <Pressable
+        style={styles.linkRow}
+        onPress={() =>
+          openLink('mailto:stillbrighthope@gmail.com')
+        }
+      >
+        <Text style={styles.linkText}>Contact & Support</Text>
+        <Text style={styles.linkArrow}>›</Text>
+      </Pressable>
+
+      <Pressable
+        style={styles.linkRow}
+        onPress={() =>
+          openLink('https://www.stillbrighthope.com/privacy-policy')
+        }
+      >
+        <Text style={styles.linkText}>Privacy Policy</Text>
+        <Text style={styles.linkArrow}>›</Text>
+      </Pressable>
+
+      <Text style={styles.footer}>
+        © 2026 Still Bright Hope
+      </Text>
 
       <View style={styles.bottomSpace} />
     </ScrollView>
@@ -128,6 +190,35 @@ const styles = StyleSheet.create({
     color: '#5A4435',
     fontFamily: 'Georgia',
     fontStyle: 'italic',
+  },
+
+  linkRow: {
+    minHeight: 58,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(154, 114, 84, 0.18)',
+  },
+
+  linkText: {
+    flex: 1,
+    fontSize: 17,
+    color: '#35322D',
+    paddingRight: 12,
+  },
+
+  linkArrow: {
+    fontSize: 28,
+    color: '#9A7254',
+    marginTop: -2,
+  },
+
+  footer: {
+    marginTop: 34,
+    fontSize: 13,
+    color: '#8A837A',
+    textAlign: 'center',
   },
 
   bottomSpace: {

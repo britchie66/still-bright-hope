@@ -26,6 +26,10 @@ export default function HomeScreen() {
   const [textSize, setTextSize] = useState(19);
   const [isSaved, setIsSaved] = useState(false);
 
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [hasNoDevotional, setHasNoDevotional] = useState(false);
+
   const player = useAudioPlayer(null);
   const status = useAudioPlayerStatus(player);
 
@@ -36,53 +40,86 @@ export default function HomeScreen() {
     });
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      async function loadHome() {
-        const savedSize =
-          await AsyncStorage.getItem(TEXT_SIZE_KEY);
+  const loadHome = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError(false);
+    setHasNoDevotional(false);
 
-        if (savedSize) {
-          setTextSize(Number(savedSize));
-        }
+    try {
+      const savedSize =
+        await AsyncStorage.getItem(TEXT_SIZE_KEY);
 
-        const today =
-          new Date().toISOString().split('T')[0];
-
-        const { data, error } = await supabase
-          .from('devotionals')
-          .select('*')
-          .eq('published', true)
-          .lte('publish_date', today)
-          .order('publish_date', {
-            ascending: false,
-          })
-          .limit(1)
-          .single();
-
-        if (data) {
-          setDevotional(data);
-
-          try {
-            const savedJson = await AsyncStorage.getItem(SAVED_KEY);
-            const savedIds: number[] = savedJson ? JSON.parse(savedJson) : [];
-            setIsSaved(savedIds.includes(Number(data.id)));
-          } catch (savedError) {
-            console.log('CHECK SAVED ERROR:', savedError);
-          }
-        }
-
-        console.log('SUPABASE DATA:', data);
-        console.log('SUPABASE ERROR:', error);
+      if (savedSize) {
+        setTextSize(Number(savedSize));
       }
 
+      const today =
+        new Date().toISOString().split('T')[0];
+
+      const { data, error } = await supabase
+        .from('devotionals')
+        .select('*')
+        .eq('published', true)
+        .lte('publish_date', today)
+        .order('publish_date', {
+          ascending: false,
+        })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.log('SUPABASE ERROR:', error);
+        setDevotional(null);
+        setLoadError(true);
+        return;
+      }
+
+      if (!data) {
+        setDevotional(null);
+        setHasNoDevotional(true);
+        return;
+      }
+
+      setDevotional(data);
+
+      try {
+        const savedJson =
+          await AsyncStorage.getItem(SAVED_KEY);
+
+        const savedIds: number[] =
+          savedJson ? JSON.parse(savedJson) : [];
+
+        setIsSaved(
+          savedIds.includes(Number(data.id))
+        );
+      } catch (savedError) {
+        console.log(
+          'CHECK SAVED ERROR:',
+          savedError
+        );
+      }
+
+      console.log('SUPABASE DATA:', data);
+    } catch (error) {
+      console.log('LOAD HOME ERROR:', error);
+      setDevotional(null);
+      setLoadError(true);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
       loadHome();
-    }, [])
+    }, [loadHome])
   );
 
   useEffect(() => {
     if (devotional?.audio_url) {
       player.replace(devotional.audio_url);
+    } else {
+      player.pause();
     }
   }, [devotional?.audio_url]);
 
@@ -104,19 +141,30 @@ export default function HomeScreen() {
     if (!devotional?.id) return;
 
     try {
-      const savedJson = await AsyncStorage.getItem(SAVED_KEY);
-      let savedIds: number[] = savedJson ? JSON.parse(savedJson) : [];
+      const savedJson =
+        await AsyncStorage.getItem(SAVED_KEY);
+
+      let savedIds: number[] =
+        savedJson ? JSON.parse(savedJson) : [];
+
       const devotionalId = Number(devotional.id);
 
       if (savedIds.includes(devotionalId)) {
-        savedIds = savedIds.filter((savedId) => savedId !== devotionalId);
+        savedIds = savedIds.filter(
+          (savedId) =>
+            savedId !== devotionalId
+        );
+
         setIsSaved(false);
       } else {
         savedIds.push(devotionalId);
         setIsSaved(true);
       }
 
-      await AsyncStorage.setItem(SAVED_KEY, JSON.stringify(savedIds));
+      await AsyncStorage.setItem(
+        SAVED_KEY,
+        JSON.stringify(savedIds)
+      );
     } catch (error) {
       console.log('SAVE ERROR:', error);
     }
@@ -133,9 +181,10 @@ export default function HomeScreen() {
         ? `\n${devotional.subtitle}`
         : '';
 
-      const scriptureLine = devotional.scripture_reference
-        ? `\n${devotional.scripture_reference}`
-        : '';
+      const scriptureLine =
+        devotional.scripture_reference
+          ? `\n${devotional.scripture_reference}`
+          : '';
 
       await Share.share({
         message:
@@ -145,6 +194,79 @@ export default function HomeScreen() {
       console.log('SHARE ERROR:', error);
     }
   }
+
+  if (isLoading) {
+    return (
+      <View style={styles.stateScreen}>
+        <Image
+          source={require('../../assets/images/still-bright-hope-logo.png')}
+          style={styles.brandLogo}
+          resizeMode="contain"
+        />
+
+        <Text style={styles.stateHeading}>
+          Loading today’s devotional...
+        </Text>
+      </View>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <View style={styles.stateScreen}>
+        <Image
+          source={require('../../assets/images/still-bright-hope-logo.png')}
+          style={styles.brandLogo}
+          resizeMode="contain"
+        />
+
+        <Text style={styles.stateHeading}>
+          Couldn’t load today’s devotional
+        </Text>
+
+        <Text style={styles.stateText}>
+          Looks like we’re having trouble connecting
+          right now. Give it another try in a moment.
+        </Text>
+
+        <Pressable
+          style={styles.retryButton}
+          onPress={loadHome}
+        >
+          <Text style={styles.retryButtonText}>
+            TRY AGAIN
+          </Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  if (hasNoDevotional) {
+    return (
+      <View style={styles.stateScreen}>
+        <Image
+          source={require('../../assets/images/still-bright-hope-logo.png')}
+          style={styles.brandLogo}
+          resizeMode="contain"
+        />
+
+        <Text style={styles.stateHeading}>
+          Nothing here just yet
+        </Text>
+
+        <Text style={styles.stateText}>
+          Today’s devotional hasn’t been published yet.
+          Check back soon.
+        </Text>
+      </View>
+    );
+  }
+
+  const hasAudio = Boolean(devotional?.audio_url);
+  const hasPrayer = Boolean(
+    devotional?.prayer &&
+      devotional.prayer.trim()
+  );
 
   return (
     <View style={styles.screen}>
@@ -175,7 +297,7 @@ export default function HomeScreen() {
         </Text>
 
         <Text style={styles.title}>
-          {devotional?.title || 'Loading...'}
+          {devotional?.title || ''}
         </Text>
 
         <View style={styles.actionRow}>
@@ -196,7 +318,9 @@ export default function HomeScreen() {
             style={styles.actionButton}
             onPress={shareDevotional}
           >
-            <Text style={styles.shareIcon}>↗</Text>
+            <Text style={styles.shareIcon}>
+              ↗
+            </Text>
 
             <Text style={styles.actionText}>
               SHARE
@@ -234,7 +358,9 @@ export default function HomeScreen() {
           <View style={styles.textSizeButtons}>
             <Pressable
               style={styles.textSizeButton}
-              onPress={() => changeTextSize(-1)}
+              onPress={() =>
+                changeTextSize(-1)
+              }
             >
               <Text style={styles.textSizeSmall}>
                 A−
@@ -243,7 +369,9 @@ export default function HomeScreen() {
 
             <Pressable
               style={styles.textSizeButton}
-              onPress={() => changeTextSize(1)}
+              onPress={() =>
+                changeTextSize(1)
+              }
             >
               <Text style={styles.textSizeLarge}>
                 A+
@@ -280,150 +408,174 @@ export default function HomeScreen() {
             )}
         </View>
 
-        <Text style={styles.prayerHeading}>
-          PRAYER
-        </Text>
+        {hasPrayer ? (
+          <>
+            <Text style={styles.prayerHeading}>
+              PRAYER
+            </Text>
 
-        <Text
+            <Text
+              style={[
+                styles.prayer,
+                {
+                  fontSize: textSize - 1,
+                  lineHeight: textSize * 1.58,
+                },
+              ]}
+            >
+              {devotional.prayer}
+            </Text>
+          </>
+        ) : null}
+
+        {!hasAudio ? (
+          <View style={styles.noAudioNotice}>
+            <Text style={styles.noAudioText}>
+              Audio is not available for this devotional.
+            </Text>
+          </View>
+        ) : null}
+
+        <View
           style={[
-            styles.prayer,
-            {
-              fontSize: textSize - 1,
-              lineHeight: textSize * 1.58,
-            },
+            styles.bottomSpace,
+            !hasAudio &&
+              styles.bottomSpaceNoPlayer,
           ]}
-        >
-          {devotional?.prayer || ''}
-        </Text>
-
-        <View style={styles.bottomSpace} />
+        />
       </ScrollView>
 
-      <View style={styles.player}>
-        <View style={styles.playerTopRow}>
-          <View>
-            <Text style={styles.playerLabel}>
-              TODAY'S DEVOTIONAL
-            </Text>
+      {hasAudio ? (
+        <View style={styles.player}>
+          <View style={styles.playerTopRow}>
+            <View style={styles.playerInfo}>
+              <Text style={styles.playerLabel}>
+                TODAY'S DEVOTIONAL
+              </Text>
 
-            <Text style={styles.playerTitle}>
-              {devotional?.title || 'Loading...'}
-            </Text>
+              <Text
+                style={styles.playerTitle}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {devotional?.title || ''}
+              </Text>
 
-            <Text style={styles.playerTime}>
-              {Math.floor(
-                status.currentTime / 60
-              )}
-              :
-              {String(
-                Math.floor(
-                  status.currentTime % 60
-                )
-              ).padStart(2, '0')}
-              {' / '}
-              {Math.floor(
-                status.duration / 60
-              )}
-              :
-              {String(
-                Math.floor(
-                  status.duration % 60
-                )
-              ).padStart(2, '0')}
-            </Text>
+              <Text style={styles.playerTime}>
+                {Math.floor(
+                  status.currentTime / 60
+                )}
+                :
+                {String(
+                  Math.floor(
+                    status.currentTime % 60
+                  )
+                ).padStart(2, '0')}
+                {' / '}
+                {Math.floor(
+                  status.duration / 60
+                )}
+                :
+                {String(
+                  Math.floor(
+                    status.duration % 60
+                  )
+                ).padStart(2, '0')}
+              </Text>
+            </View>
+
+            <View style={styles.playerControls}>
+              <Pressable
+                style={styles.rewindButton}
+                onPress={() => {
+                  const newTime = Math.max(
+                    0,
+                    status.currentTime - 15
+                  );
+
+                  player.seekTo(newTime);
+                }}
+              >
+                <Text style={styles.rewindText}>
+                  ↶15
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.playButton}
+                onPress={() => {
+                  if (status.playing) {
+                    player.pause();
+                  } else {
+                    player.play();
+                  }
+                }}
+              >
+                <Text style={styles.playIcon}>
+                  {status.playing
+                    ? '❚❚'
+                    : '▶'}
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.rewindButton}
+                onPress={() => {
+                  const newTime = Math.min(
+                    status.duration,
+                    status.currentTime + 15
+                  );
+
+                  player.seekTo(newTime);
+                }}
+              >
+                <Text style={styles.rewindText}>
+                  15↷
+                </Text>
+              </Pressable>
+            </View>
           </View>
 
-          <View style={styles.playerControls}>
-            <Pressable
-              style={styles.rewindButton}
-              onPress={() => {
-                const newTime = Math.max(
-                  0,
-                  status.currentTime - 15
-                );
+          <Pressable
+            style={styles.progressTrack}
+            onLayout={(event) => {
+              setProgressWidth(
+                event.nativeEvent.layout.width
+              );
+            }}
+            onPress={(event) => {
+              if (
+                status.duration > 0 &&
+                progressWidth > 0
+              ) {
+                const tapX =
+                  event.nativeEvent.locationX;
+
+                const newTime =
+                  (tapX / progressWidth) *
+                  status.duration;
 
                 player.seekTo(newTime);
-              }}
-            >
-              <Text style={styles.rewindText}>
-                ↶15
-              </Text>
-            </Pressable>
-
-            <Pressable
-              style={styles.playButton}
-              onPress={() => {
-                if (status.playing) {
-                  player.pause();
-                } else {
-                  player.play();
-                }
-              }}
-            >
-              <Text style={styles.playIcon}>
-                {status.playing
-                  ? '❚❚'
-                  : '▶'}
-              </Text>
-            </Pressable>
-
-            <Pressable
-              style={styles.rewindButton}
-              onPress={() => {
-                const newTime = Math.min(
-                  status.duration,
-                  status.currentTime + 15
-                );
-
-                player.seekTo(newTime);
-              }}
-            >
-              <Text style={styles.rewindText}>
-                15↷
-              </Text>
-            </Pressable>
-          </View>
+              }
+            }}
+          >
+            <View
+              style={[
+                styles.progressFill,
+                {
+                  width: `${
+                    status.duration > 0
+                      ? (status.currentTime /
+                          status.duration) *
+                        100
+                      : 0
+                  }%`,
+                },
+              ]}
+            />
+          </Pressable>
         </View>
-
-        <Pressable
-          style={styles.progressTrack}
-          onLayout={(event) => {
-            setProgressWidth(
-              event.nativeEvent.layout.width
-            );
-          }}
-          onPress={(event) => {
-            if (
-              status.duration > 0 &&
-              progressWidth > 0
-            ) {
-              const tapX =
-                event.nativeEvent.locationX;
-
-              const newTime =
-                (tapX / progressWidth) *
-                status.duration;
-
-              player.seekTo(newTime);
-            }
-          }}
-        >
-          <View
-            style={[
-              styles.progressFill,
-              {
-                width: `${
-                  status.duration > 0
-                    ? (status.currentTime /
-                        status.duration) *
-                      100
-                    : 0
-                }%`,
-              },
-            ]}
-          />
-        </Pressable>
-      </View>
+      ) : null}
     </View>
   );
 }
@@ -437,6 +589,47 @@ const styles = StyleSheet.create({
   content: {
     paddingTop: 70,
     paddingHorizontal: 28,
+  },
+
+  stateScreen: {
+    flex: 1,
+    backgroundColor: '#F4EFE6',
+    paddingHorizontal: 28,
+    paddingTop: 70,
+    alignItems: 'center',
+  },
+
+  stateHeading: {
+    marginTop: 24,
+    fontSize: 28,
+    fontWeight: '600',
+    color: '#27251F',
+    textAlign: 'center',
+  },
+
+  stateText: {
+    marginTop: 14,
+    fontSize: 18,
+    lineHeight: 28,
+    color: '#5A554E',
+    textAlign: 'center',
+    maxWidth: 340,
+  },
+
+  retryButton: {
+    marginTop: 28,
+    paddingVertical: 12,
+    paddingHorizontal: 22,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#CDBDA5',
+    backgroundColor: '#FBF4E7',
+  },
+
+  retryButtonText: {
+    fontSize: 10,
+    letterSpacing: 1.5,
+    color: '#5A4435',
   },
 
   date: {
@@ -596,8 +789,27 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
 
+  noAudioNotice: {
+    marginTop: 36,
+    paddingTop: 18,
+    borderTopWidth: 1,
+    borderTopColor:
+      'rgba(154, 114, 84, 0.25)',
+  },
+
+  noAudioText: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: '#6E6A63',
+    fontStyle: 'italic',
+  },
+
   bottomSpace: {
     height: 130,
+  },
+
+  bottomSpaceNoPlayer: {
+    height: 50,
   },
 
   player: {
@@ -610,6 +822,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 12,
     paddingBottom: 16,
+  },
+
+  playerInfo: {
+    flex: 1,
+    paddingRight: 12,
   },
 
   playerLabel: {
