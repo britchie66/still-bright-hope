@@ -32,11 +32,12 @@ export default function ArchiveScreen() {
         categoriesResult,
         linksResult,
       ] = await Promise.all([
-        supabase
-          .from('devotionals')
-          .select('*')
-          .eq('published', true)
-          .order('publish_date', { ascending: false }),
+supabase
+  .from('devotionals')
+  .select('*')
+  .eq('published', true)
+  .lt('publish_date', new Date().toLocaleDateString('en-CA'))
+  .order('publish_date', { ascending: false }),
 
         supabase
           .from('categories')

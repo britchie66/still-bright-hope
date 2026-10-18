@@ -35,12 +35,13 @@ export default function DevotionalScreen() {
 
   const { id } = useLocalSearchParams();
 
-  useEffect(() => {
-    setAudioModeAsync({
-      playsInSilentMode: true,
-      shouldPlayInBackground: true,
-    });
-  }, []);
+useEffect(() => {
+  setAudioModeAsync({
+    playsInSilentMode: true,
+    shouldPlayInBackground: true,
+    interruptionMode: 'doNotMix',
+  });
+}, []);
 
   useEffect(() => {
     async function loadTextSize() {

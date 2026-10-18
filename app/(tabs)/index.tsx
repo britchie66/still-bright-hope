@@ -33,12 +33,13 @@ export default function HomeScreen() {
   const player = useAudioPlayer(null);
   const status = useAudioPlayerStatus(player);
 
-  useEffect(() => {
-    setAudioModeAsync({
-      playsInSilentMode: true,
-      shouldPlayInBackground: true,
-    });
-  }, []);
+useEffect(() => {
+  setAudioModeAsync({
+    playsInSilentMode: true,
+    shouldPlayInBackground: true,
+    interruptionMode: 'doNotMix',
+  });
+}, []);
 
   const loadHome = useCallback(async () => {
     setIsLoading(true);
