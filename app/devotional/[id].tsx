@@ -525,10 +525,17 @@ useEffect(() => {
 
               <Pressable
                 style={styles.playButton}
-                onPress={() => {
+                onPress={async () => {
                   if (status.playing) {
                     player.pause();
                   } else {
+                    if (
+                      status.didJustFinish ||
+                      (status.duration > 0 &&
+                        status.currentTime >= status.duration - 0.5)
+                    ) {
+                      await player.seekTo(0);
+                    }
                     player.play();
                   }
                 }}
@@ -559,42 +566,41 @@ useEffect(() => {
           </View>
 
           <Pressable
-            style={styles.progressTrack}
+            style={styles.progressTouchArea}
             onLayout={(event) => {
-              setProgressWidth(
-                event.nativeEvent.layout.width
-              );
+              setProgressWidth(event.nativeEvent.layout.width);
             }}
             onPress={(event) => {
-              if (
-                status.duration > 0 &&
-                progressWidth > 0
-              ) {
-                const tapX =
-                  event.nativeEvent.locationX;
-
-                const newTime =
-                  (tapX / progressWidth) *
-                  status.duration;
-
+              if (status.duration > 0 && progressWidth > 0) {
+                const tapX = event.nativeEvent.locationX;
+                const newTime = Math.max(
+                  0,
+                  Math.min(
+                    status.duration,
+                    (tapX / progressWidth) * status.duration
+                  )
+                );
                 player.seekTo(newTime);
               }
             }}
           >
-            <View
-              style={[
-                styles.progressFill,
-                {
-                  width: `${
-                    status.duration > 0
-                      ? (status.currentTime /
-                          status.duration) *
-                        100
-                      : 0
-                  }%`,
-                },
-              ]}
-            />
+            <View style={styles.progressTrack}>
+              <View
+                style={[
+                  styles.progressFill,
+                  {
+                    width: `${
+                      status.duration > 0
+                        ? Math.min(
+                            100,
+                            (status.currentTime / status.duration) * 100
+                          )
+                        : 0
+                    }%`,
+                  },
+                ]}
+              />
+            </View>
           </Pressable>
         </View>
       ) : null}
@@ -891,12 +897,18 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
+  progressTouchArea: {
+    height: 28,
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+
   progressTrack: {
     height: 4,
     backgroundColor: '#6A655D',
     borderRadius: 2,
-    marginTop: 8,
     width: '100%',
+    overflow: 'hidden',
   },
 
   progressFill: {
