@@ -8,6 +8,7 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   Image,
+  Linking,
   Pressable,
   ScrollView,
   Share,
@@ -19,12 +20,14 @@ import { supabase } from '../../constants/supabase';
 
 const TEXT_SIZE_KEY = 'devotionalTextSize';
 const SAVED_KEY = 'savedDevotionalIds';
+const VIEWED_KEY = 'viewedDevotionalIds';
 
 export default function HomeScreen() {
   const [devotional, setDevotional] = useState<any>(null);
   const [progressWidth, setProgressWidth] = useState(0);
   const [textSize, setTextSize] = useState(19);
   const [isSaved, setIsSaved] = useState(false);
+  const [isNew, setIsNew] = useState(false);
 
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -89,6 +92,15 @@ useEffect(() => {
       setDevotional(data);
 
       try {
+        const viewedJson = await AsyncStorage.getItem(VIEWED_KEY);
+        const viewedIds: number[] = viewedJson ? JSON.parse(viewedJson) : [];
+        setIsNew(!viewedIds.includes(Number(data.id)));
+      } catch (viewedError) {
+        console.log('CHECK VIEWED ERROR:', viewedError);
+        setIsNew(false);
+      }
+
+      try {
         const savedJson =
           await AsyncStorage.getItem(SAVED_KEY);
 
@@ -128,6 +140,25 @@ useEffect(() => {
       player.pause();
     }
   }, [devotional?.audio_url]);
+
+  async function markCurrentDevotionalViewed() {
+    if (!devotional?.id || !isNew) return;
+    const devotionalId = Number(devotional.id);
+    // Clear immediately; safely persist so the label stays cleared next visit.
+    setIsNew(false);
+    try {
+      const viewedJson = await AsyncStorage.getItem(VIEWED_KEY);
+      const viewedIds: number[] = viewedJson ? JSON.parse(viewedJson) : [];
+      if (!viewedIds.includes(devotionalId)) {
+        await AsyncStorage.setItem(
+          VIEWED_KEY,
+          JSON.stringify([...viewedIds, devotionalId])
+        );
+      }
+    } catch (error) {
+      console.log('MARK VIEWED ERROR:', error);
+    }
+  }
 
   async function changeTextSize(amount: number) {
     const newSize = Math.min(
@@ -173,6 +204,14 @@ useEffect(() => {
       );
     } catch (error) {
       console.log('SAVE ERROR:', error);
+    }
+  }
+
+  async function openSubscribe() {
+    try {
+      await Linking.openURL('https://www.stillbrighthope.com/subscribe');
+    } catch (error) {
+      console.log('SUBSCRIBE LINK ERROR:', error);
     }
   }
 
@@ -279,6 +318,12 @@ useEffect(() => {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        onScroll={(event) => {
+          if (isNew && event.nativeEvent.contentOffset.y > 160) {
+            void markCurrentDevotionalViewed();
+          }
+        }}
+        scrollEventThrottle={100}
       >
         <Image
           source={require('../../assets/images/still-bright-hope-logo.png')}
@@ -286,7 +331,8 @@ useEffect(() => {
           resizeMode="contain"
         />
 
-        <Text style={styles.date}>
+        <View style={styles.dateRow}>
+          <Text style={styles.date}>
           {devotional?.publish_date
             ? new Date(
                 devotional.publish_date +
@@ -300,7 +346,13 @@ useEffect(() => {
                 .toUpperCase()
                 .replace(',', ' ·')
             : ''}
-        </Text>
+          </Text>
+          {isNew ? (
+            <View style={styles.newBadge}>
+              <Text style={styles.newBadgeText}>NEW</Text>
+            </View>
+          ) : null}
+        </View>
 
         <Text style={styles.title}>
           {devotional?.title || ''}
@@ -434,6 +486,23 @@ useEffect(() => {
           </>
         ) : null}
 
+        <View style={styles.subscribeCard}>
+          <Text style={styles.subscribeEyebrow}>A LITTLE HOPE IN YOUR INBOX</Text>
+          <Text style={styles.subscribeHeading}>Never miss a devotional.</Text>
+          <Text style={styles.subscribeText}>
+            Get an email when a new Still Bright Hope devotional is published,
+            three times a week.
+          </Text>
+          <Pressable
+            style={styles.subscribeButton}
+            onPress={openSubscribe}
+            accessibilityRole="button"
+            accessibilityLabel="Sign up for devotional emails"
+          >
+            <Text style={styles.subscribeButtonText}>SIGN UP FOR EMAIL UPDATES  →</Text>
+          </Pressable>
+        </View>
+
         {!hasAudio ? (
           <View style={styles.noAudioNotice}>
             <Text style={styles.noAudioText}>
@@ -521,6 +590,7 @@ useEffect(() => {
                       await player.seekTo(0);
                     }
                     player.play();
+                    void markCurrentDevotionalViewed();
                   }
                 }}
               >
@@ -640,11 +710,32 @@ const styles = StyleSheet.create({
     color: '#5A4435',
   },
 
+  dateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 10,
+  },
+
   date: {
     fontSize: 12,
     letterSpacing: 2,
     color: '#9A7254',
-    marginBottom: 10,
+  },
+
+  newBadge: {
+    backgroundColor: '#DCDCBF',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+
+  newBadgeText: {
+    color: '#46543B',
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 1.2,
   },
 
   title: {
@@ -795,6 +886,56 @@ const styles = StyleSheet.create({
   prayer: {
     color: '#393630',
     fontStyle: 'italic',
+  },
+
+  subscribeCard: {
+    marginTop: 34,
+    marginBottom: 18,
+    padding: 24,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E6D9C4',
+    backgroundColor: '#FFFDF8',
+  },
+
+  subscribeEyebrow: {
+    color: '#657154',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    marginBottom: 12,
+  },
+
+  subscribeHeading: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#292C28',
+    marginBottom: 10,
+  },
+
+  subscribeText: {
+    fontSize: 16,
+    lineHeight: 25,
+    color: '#5A554E',
+    marginBottom: 20,
+  },
+
+  subscribeButton: {
+    backgroundColor: '#657154',
+    borderRadius: 8,
+    minHeight: 48,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  subscribeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textAlign: 'center',
   },
 
   noAudioNotice: {

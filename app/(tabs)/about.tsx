@@ -8,6 +8,8 @@ import {
   View,
 } from 'react-native';
 
+const SUBSCRIBE_URL = 'https://www.stillbrighthope.com/subscribe';
+
 export default function AboutScreen() {
   const openLink = async (url: string) => {
     const supported = await Linking.canOpenURL(url);
@@ -49,14 +51,31 @@ export default function AboutScreen() {
       </Text>
 
       <Text style={styles.body}>
-        Still Bright Hope is a weekday devotional where we laugh at the
-        ludicrous, look honestly at life, and turn to Scripture for the truth
-        that doesn't change when everything else does.
+        Still Bright Hope is a devotional published three times a week where we
+        laugh at the ludicrous, look honestly at life, and turn to Scripture for
+        the truth that doesn't change when everything else does.
       </Text>
 
       <Text style={styles.body}>
         And through it all, we praise the King who rules with love and mercy.
       </Text>
+
+      <View style={styles.subscribeCard}>
+        <Text style={styles.subscribeEyebrow}>A LITTLE HOPE IN YOUR INBOX</Text>
+        <Text style={styles.subscribeHeading}>Never miss a devotional.</Text>
+        <Text style={styles.subscribeBody}>
+          Get an email when a new Still Bright Hope devotional is published,
+          three times a week.
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Sign up for devotional emails"
+          style={styles.subscribeButton}
+          onPress={() => openLink(SUBSCRIBE_URL)}
+        >
+          <Text style={styles.subscribeButtonText}>SIGN UP FOR EMAIL UPDATES  →</Text>
+        </Pressable>
+      </View>
 
       <View style={styles.divider} />
 
@@ -90,19 +109,7 @@ export default function AboutScreen() {
 
       <Pressable
         style={styles.linkRow}
-        onPress={() =>
-          openLink('https://stillbrighthope.com/subscribe')
-        }
-      >
-        <Text style={styles.linkText}>Get Daily Devotionals by Email</Text>
-        <Text style={styles.linkArrow}>›</Text>
-      </Pressable>
-
-      <Pressable
-        style={styles.linkRow}
-        onPress={() =>
-          openLink('mailto:stillbrighthope@gmail.com')
-        }
+        onPress={() => openLink('mailto:stillbrighthope@gmail.com')}
       >
         <Text style={styles.linkText}>Contact & Support</Text>
         <Text style={styles.linkArrow}>›</Text>
@@ -166,6 +173,55 @@ const styles = StyleSheet.create({
     color: '#35322D',
     marginBottom: 20,
     letterSpacing: 0.1,
+  },
+
+  subscribeCard: {
+    backgroundColor: '#FFFCF7',
+    borderWidth: 1,
+    borderColor: '#E6D9C4',
+    borderRadius: 14,
+    padding: 22,
+    marginTop: 8,
+    marginBottom: 16,
+  },
+
+  subscribeEyebrow: {
+    color: '#657154',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.6,
+    marginBottom: 12,
+  },
+
+  subscribeHeading: {
+    color: '#27251F',
+    fontSize: 23,
+    fontWeight: '600',
+    marginBottom: 10,
+  },
+
+  subscribeBody: {
+    color: '#5A554E',
+    fontSize: 16,
+    lineHeight: 25,
+    marginBottom: 18,
+  },
+
+  subscribeButton: {
+    backgroundColor: '#657154',
+    borderRadius: 8,
+    minHeight: 48,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  subscribeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textAlign: 'center',
   },
 
   divider: {
