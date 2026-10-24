@@ -220,7 +220,7 @@ useEffect(() => {
 
     try {
       const url =
-        `https://www.stillbrighthope.com/devotional?id=${devotional.id}`;
+        `https://links.stillbrighthope.com/devotional/${devotional.id}`;
 
       const subtitleLine = devotional.subtitle
         ? `\n${devotional.subtitle}`
@@ -349,6 +349,7 @@ useEffect(() => {
           </Text>
           {isNew ? (
             <View style={styles.newBadge}>
+              <Text style={styles.newBadgeDot}>●</Text>
               <Text style={styles.newBadgeText}>NEW</Text>
             </View>
           ) : null}
@@ -725,15 +726,23 @@ const styles = StyleSheet.create({
   },
 
   newBadge: {
-    backgroundColor: '#DCDCBF',
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#59654B',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+  },
+
+  newBadgeDot: {
+    color: '#FFFDF8',
+    fontSize: 8,
   },
 
   newBadgeText: {
-    color: '#46543B',
-    fontSize: 9,
+    color: '#FFFDF8',
+    fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1.2,
   },
