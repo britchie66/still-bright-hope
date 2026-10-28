@@ -1,3 +1,4 @@
+
 import {
   Image,
   Linking,
@@ -73,7 +74,9 @@ export default function AboutScreen() {
           style={styles.subscribeButton}
           onPress={() => openLink(SUBSCRIBE_URL)}
         >
-          <Text style={styles.subscribeButtonText}>SIGN UP FOR EMAIL UPDATES  →</Text>
+          <Text style={styles.subscribeButtonText}>
+            SIGN UP FOR EMAIL UPDATES  →
+          </Text>
         </Pressable>
       </View>
 
@@ -124,6 +127,21 @@ export default function AboutScreen() {
         <Text style={styles.linkText}>Privacy Policy</Text>
         <Text style={styles.linkArrow}>›</Text>
       </Pressable>
+
+      {/* ESV SCRIPTURE COPYRIGHT */}
+      <View style={styles.divider} />
+
+      <Text style={styles.sectionHeading}>SCRIPTURE COPYRIGHT</Text>
+
+      <Text style={styles.copyrightNotice}>
+        Scripture quotations are from the ESV® Bible (The Holy Bible,
+        English Standard Version®), © 2001 by Crossway, a publishing
+        ministry of Good News Publishers. ESV Text Edition: 2025.
+        The ESV text may not be quoted in any publication made
+        available to the public by a Creative Commons license.
+        The ESV may not be translated in whole or in part into
+        any other language. Used by permission. All rights reserved.
+      </Text>
 
       <Text style={styles.footer}>
         © 2026 Still Bright Hope
@@ -268,6 +286,13 @@ const styles = StyleSheet.create({
     fontSize: 28,
     color: '#9A7254',
     marginTop: -2,
+  },
+
+  copyrightNotice: {
+    fontSize: 13,
+    lineHeight: 21,
+    color: '#8A837A',
+    marginBottom: 8,
   },
 
   footer: {
